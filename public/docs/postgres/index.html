@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS RDS PostgreSQL Module Documentation</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .sidebar {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 100;
+      padding: 20px 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      background-color: #f8f9fa;
+      border-right: 1px solid #dee2e6;
+    }
+    .sidebar-sticky {
+      position: sticky;
+      top: 0;
+      height: calc(100vh - 48px);
+      padding-top: 0.5rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .nav-link {
+      font-weight: 500;
+      color: #333;
+    }
+    .nav-link:hover {
+      color: #007bff;
+    }
+    .nav-link.active {
+      color: #007bff;
+    }
+    .main-content {
+      margin-left: 240px;
+      padding: 20px;
+    }
+    pre {
+      background-color: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 15px;
+      overflow-x: auto;
+    }
+    code {
+      font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.9em;
+      color: #e83e8c;
+    }
+    pre code {
+      color: #333;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    h1 {
+      font-size: 2.5rem;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: 0.5rem;
+    }
+    h2 {
+      font-size: 2rem;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: 0.3rem;
+    }
+    h3 {
+      font-size: 1.5rem;
+    }
+    .method-name {
+      font-weight: bold;
+      color: #007bff;
+    }
+    .service-card {
+      margin-bottom: 20px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .service-card-header {
+      background-color: #f8f9fa;
+      padding: 10px 15px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .service-card-body {
+      padding: 15px;
+    }
+    .method-card {
+      margin-bottom: 15px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+    }
+    .method-card-header {
+      background-color: #f8f9fa;
+      padding: 8px 15px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .method-card-body {
+      padding: 15px;
+    }
+    .aws-orange {
+      color: #FF9900;
+    }
+    .aws-blue {
+      color: #232F3E;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 d-md-block sidebar">
+        <div class="sidebar-sticky">
+          <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>Documentation</span>
+          </h5>
+          <ul class="nav flex-column">
+            <li class="nav-item">
+              <a class="nav-link active" href="#overview">Overview</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#module-structure">Module Structure</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#configuration">Configuration</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#services">Services</a>
+              <ul class="nav flex-column ml-3">
+                <li class="nav-item">
+                  <a class="nav-link" href="#postgresservice">PostgresService</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#rdsbackupservice">RdsBackupService</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#rdsparameterservice">RdsParameterService</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#rdsinstanceservice">RdsInstanceService</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="#postgresmaintenanceservice">PostgresMaintenanceService</a>
+                </li>
+              </ul>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#controllers">Controllers</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#api-endpoints">API Endpoints</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#usage-examples">Usage Examples</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#best-practices">Best Practices</a>
+            </li>
+          </ul>
+          
+          <h5 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+            <span>Detailed Documentation</span>
+          </h5>
+          <ul class="nav flex-column">
+            <li class="nav-item">
+              <a class="nav-link" href="postgres-service.html">PostgresService</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="rds-backup-service.html">RdsBackupService</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="rds-parameter-service.html">RdsParameterService</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="rds-instance-service.html">RdsInstanceService</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="postgres-maintenance-service.html">PostgresMaintenanceService</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="api-endpoints.html">API Endpoints</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="module-integration.html">Module Integration</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- Main content -->
+      <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-md-4 main-content">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1><span class="aws-orange">AWS RDS PostgreSQL</span> <span class="aws-blue">Module</span></h1>
+        </div>
+
+        <section id="overview">
+          <h2>Overview</h2>
+          <p>
+            The AWS RDS PostgreSQL module provides a comprehensive interface for interacting with AWS RDS PostgreSQL databases in your NestJS application. It includes features for:
+          </p>
+          <ul>
+            <li>Connection management with DATABASE_URL support</li>
+            <li>Health checks and monitoring</li>
+            <li>Database statistics and metrics</li>
+            <li>RDS instance lifecycle management (create, delete, stop, start, reboot)</li>
+            <li>RDS snapshot management</li>
+            <li>RDS parameter group management</li>
+            <li>Scheduled maintenance tasks</li>
+          </ul>
+        </section>
+
+        <section id="module-structure">
+          <h2>Module Structure</h2>
+          <p>The module is organized as follows:</p>
+          <pre><code>src/database/postgres/
+├── postgres.module.ts           # Main module definition
+├── postgres.service.ts          # Core PostgreSQL service
+├── postgres.controller.ts       # API endpoints for PostgreSQL operations
+├── rds-backup.service.ts        # RDS snapshot management
+├── rds-parameter.service.ts     # RDS parameter group management
+├── rds-instance.service.ts      # RDS instance lifecycle management
+├── postgres-maintenance.service.ts # Scheduled maintenance tasks
+├── rds-instance.controller.ts   # API endpoints for RDS instance management
+└── docs/                        # Documentation</code></pre>
+        </section>
+
+        <section id="configuration">
+          <h2>Configuration</h2>
+          <p>The module can be configured using environment variables:</p>
+
+          <h3>Primary Connection Method</h3>
+          <pre><code>DATABASE_URL=postgresql://username:password@hostname:port/database</code></pre>
+
+          <h3>Fallback Connection Method</h3>
+          <p>If <code>DATABASE_URL</code> is not provided, the module will use these individual parameters:</p>
+          <pre><code>RDS_HOST=your-rds-endpoint.rds.amazonaws.com
+RDS_PORT=5432
+RDS_USER=postgres
+RDS_PASSWORD=your_secure_password
+RDS_DB=your_database_name</code></pre>
+
+          <h3>AWS Configuration</h3>
+          <pre><code>AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+RDS_INSTANCE_ID=your-rds-instance-id
+RDS_PARAMETER_GROUP=your-parameter-group-name</code></pre>
+
+          <h3>Connection Pool Settings</h3>
+          <pre><code>DB_POOL_MAX=20
+DB_POOL_MIN=5
+DB_POOL_IDLE=10000</code></pre>
+
+          <h3>SSL Configuration</h3>
+          <pre><code>RDS_CA_CERT=your_ca_certificate_content</code></pre>
+        </section>
+
+        <section id="services">
+          <h2>Services</h2>
+
+          <div id="postgresservice" class="service-card">
+            <div class="service-card-header">
+              <h3>PostgresService</h3>
+            </div>
+            <div class="service-card-body">
+              <p>The <code>PostgresService</code> provides core functionality for interacting with PostgreSQL databases.</p>
+              <h4>Key Methods:</h4>
+              <ul>
+                <li><span class="method-name">getConnection()</span>: Get the database connection</li>
+                <li><span class="method-name">executeQuery(query, parameters)</span>: Execute a raw SQL query</li>
+                <li><span class="method-name">checkHealth()</span>: Check database connection health</li>
+                <li><span class="method-name">getRdsInstanceInfo()</span>: Get RDS instance information</li>
+                <li><span class="method-name">getDatabaseStats()</span>: Get database statistics</li>
+                <li><span class="method-name">getSlowQueries()</span>: Monitor slow queries</li>
+                <li><span class="method-name">getConnectionPoolStats()</span>: Get connection pool statistics</li>
+              </ul>
+              <p><a href="postgres-service.html">View detailed documentation</a></p>
+            </div>
+          </div>
+
+          <div id="rdsbackupservice" class="service-card">
+            <div class="service-card-header">
+              <h3>RdsBackupService</h3>
+            </div>
+            <div class="service-card-body">
+              <p>The <code>RdsBackupService</code> provides functionality for managing RDS snapshots.</p>
+              <h4>Key Methods:</h4>
+              <ul>
+                <li><span class="method-name">createSnapshot(snapshotId)</span>: Create a database snapshot</li>
+                <li><span class="method-name">listSnapshots()</span>: List database snapshots</li>
+              </ul>
+              <p><a href="rds-backup-service.html">View detailed documentation</a></p>
+            </div>
+          </div>
+
+          <div id="rdsparameterservice" class="service-card">
+            <div class="service-card-header">
+              <h3>RdsParameterService</h3>
+            </div>
+            <div class="service-card-body">
+              <p>The <code>RdsParameterService</code> provides functionality for managing RDS parameter groups.</p>
+              <h4>Key Methods:</h4>
+              <ul>
+                <li><span class="method-name">getParameterGroupSettings()</span>: Get RDS parameter group settings</li>
+                <li><span class="method-name">updateParameterGroupSettings(parameters)</span>: Update RDS parameter group settings</li>
+              </ul>
+              <p><a href="rds-parameter-service.html">View detailed documentation</a></p>
+            </div>
+          </div>
+
+          <div id="rdsinstanceservice" class="service-card">
+            <div class="service-card-header">
+              <h3>RdsInstanceService</h3>
+            </div>
+            <div class="service-card-body">
+              <p>The <code>RdsInstanceService</code> provides functionality for managing RDS instance lifecycle.</p>
+              <h4>Key Methods:</h4>
+              <ul>
+                <li><span class="method-name">createInstance(params)</span>: Create a new RDS PostgreSQL instance</li>
+                <li><span class="method-name">deleteInstance(params)</span>: Delete an RDS PostgreSQL instance</li>
+                <li><span class="method-name">stopInstance(dbInstanceIdentifier)</span>: Stop an RDS PostgreSQL instance</li>
+                <li><span class="method-name">startInstance(dbInstanceIdentifier)</span>: Start an RDS PostgreSQL instance</li>
+                <li><span class="method-name">rebootInstance(dbInstanceIdentifier, forceFailover)</span>: Reboot an RDS PostgreSQL instance</li>
+                <li><span class="method-name">modifyInstance(params)</span>: Modify an RDS PostgreSQL instance</li>
+                <li><span class="method-name">getInstance(dbInstanceIdentifier)</span>: Get information about an RDS PostgreSQL instance</li>
+                <li><span class="method-name">listInstances()</span>: List all RDS PostgreSQL instances</li>
+              </ul>
+              <p><a href="rds-instance-service.html">View detailed documentation</a></p>
+            </div>
+          </div>
+
+          <div id="postgresmaintenanceservice" class="service-card">
+            <div class="service-card-header">
+              <h3>PostgresMaintenanceService</h3>
+            </div>
+            <div class="service-card-body">
+              <p>The <code>PostgresMaintenanceService</code> provides scheduled maintenance tasks for PostgreSQL databases.</p>
+              <h4>Key Methods:</h4>
+              <ul>
+                <li><span class="method-name">runDailyVacuum()</span>: Run VACUUM ANALYZE on all tables (scheduled daily)</li>
+                <li><span class="method-name">createWeeklySnapshot()</span>: Create a weekly snapshot (scheduled weekly)</li>
+                <li><span class="method-name">monitorSlowQueries()</span>: Monitor slow queries (scheduled daily)</li>
+              </ul>
+              <p><a href="postgres-maintenance-service.html">View detailed documentation</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="controllers">
+          <h2>Controllers</h2>
+          <p>The module provides the following controllers:</p>
+
+          <h3>PostgresController</h3>
+          <p>The <code>PostgresController</code> provides API endpoints for PostgreSQL operations.</p>
+          <h4>Endpoints:</h4>
+          <ul>
+            <li><code>GET /api/rds/health</code>: Check database health</li>
+            <li><code>GET /api/rds/stats</code>: Get database statistics</li>
+            <li><code>GET /api/rds/info</code>: Get RDS instance information</li>
+            <li><code>GET /api/rds/slow-queries</code>: Get slow queries</li>
+            <li><code>GET /api/rds/connection-pool</code>: Get connection pool statistics</li>
+          </ul>
+
+          <h3>RdsInstanceController</h3>
+          <p>The <code>RdsInstanceController</code> provides API endpoints for RDS instance management.</p>
+          <h4>Endpoints:</h4>
+          <ul>
+            <li><code>GET /api/rds/instances</code>: List all PostgreSQL RDS instances</li>
+            <li><code>GET /api/rds/instances/:id</code>: Get details of a specific RDS instance</li>
+            <li><code>POST /api/rds/instances</code>: Create a new PostgreSQL RDS instance</li>
+            <li><code>DELETE /api/rds/instances/:id</code>: Delete an RDS instance</li>
+            <li><code>POST /api/rds/instances/:id/stop</code>: Stop an RDS instance</li>
+            <li><code>POST /api/rds/instances/:id/start</code>: Start an RDS instance</li>
+            <li><code>POST /api/rds/instances/:id/reboot</code>: Reboot an RDS instance</li>
+            <li><code>PUT /api/rds/instances/:id</code>: Modify an RDS instance</li>
+          </ul>
+        </section>
+
+        <section id="api-endpoints">
+          <h2>API Endpoints</h2>
+          <p>For detailed information about the API endpoints, see the <a href="api-endpoints.html">API Endpoints documentation</a>.</p>
+        </section>
+
+        <section id="usage-examples">
+          <h2>Usage Examples</h2>
+          <p>For usage examples, see the <a href="module-integration.html">Module Integration documentation</a>.</p>
+        </section>
+
+        <section id="best-practices">
+          <h2>Best Practices</h2>
+          <ol>
+            <li><strong>Connection Management</strong>:
+              <ul>
+                <li>Use the DATABASE_URL environment variable for connection configuration</li>
+                <li>Provide fallback values for all connection parameters</li>
+                <li>Use connection pooling for optimal performance</li>
+              </ul>
+            </li>
+            <li><strong>Security</strong>:
+              <ul>
+                <li>Store sensitive credentials in environment variables</li>
+                <li>Enable SSL for production environments</li>
+                <li>Use deletion protection for production databases</li>
+                <li>Implement proper access controls for API endpoints</li>
+              </ul>
+            </li>
+            <li><strong>Backup Strategy</strong>:
+              <ul>
+                <li>Create regular automated snapshots</li>
+                <li>Test snapshot restoration periodically</li>
+                <li>Implement a retention policy for snapshots</li>
+              </ul>
+            </li>
+            <li><strong>Monitoring</strong>:
+              <ul>
+                <li>Regularly check database health</li>
+                <li>Monitor slow queries and optimize as needed</li>
+                <li>Set up alerts for critical database metrics</li>
+              </ul>
+            </li>
+            <li><strong>Cost Optimization</strong>:
+              <ul>
+                <li>Stop non-production instances during off-hours</li>
+                <li>Use appropriate instance sizes for your workload</li>
+                <li>Monitor and optimize storage usage</li>
+              </ul>
+            </li>
+          </ol>
+        </section>
+
+        <footer class="pt-4 my-md-5 pt-md-5 border-top">
+          <div class="row">
+            <div class="col-12 col-md">
+              <small class="d-block mb-3 text-muted">&copy; 2025 AWS RDS PostgreSQL Module</small>
+            </div>
+          </div>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

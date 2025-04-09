@@ -15,7 +15,14 @@ import { CognitoModule } from './aws/cognito/cognito.module'; // 👈 Add Cognit
 import { FileModule } from './file/file.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TerminalModule } from './terminal/terminal.module';
-
+import { DatabaseModule } from './database/database.module';
+import { DatabaseConnectionsModule } from './database/connections/database-connections.module';
+import { DatabaseConnectionEntity } from './database/entities/database-connection.entity';
+import { ProjectModule } from './project/project.module';
+import { DynamodbModule } from './dynamodb/dynamodb.module';
+import { GoogleGeminiModule } from './google-gemini/google-gemini.module';
+import { Ec2Service } from './ec2/ec2.service';
+import { Ec2Controller } from './ec2/ec2.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,7 +32,7 @@ import { TerminalModule } from './terminal/terminal.module';
     TypeOrmModule.forRoot({
       type: 'postgres',
       url: process.env.DATABASE_URL,
-      entities: [], // Add your entities here
+      entities: [DatabaseConnectionEntity], // Add your entities here
       synchronize: true,
     }),
     JwtModule.register({
@@ -43,9 +50,14 @@ import { TerminalModule } from './terminal/terminal.module';
     CognitoModule,
     FileModule,
     TerminalModule,
-    PrismaModule, // 👈 Now Cognito is fully integrated
+    PrismaModule,
+    DatabaseModule,
+    DatabaseConnectionsModule,
+    ProjectModule,
+    DynamodbModule,
+    GoogleGeminiModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, GoogleStrategy],
+  controllers: [AppController, Ec2Controller],
+  providers: [AppService, GoogleStrategy, Ec2Service],
 })
 export class AppModule {}

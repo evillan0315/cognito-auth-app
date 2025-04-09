@@ -32,6 +32,7 @@ import { CognitoService } from '../aws/cognito/cognito.service'; // Import the C
 import { CognitoPayload } from '../aws/cognito/cognito.interface'; // Import the CognitoPayload interface
 import { AuthSignInDto, GetProfileDto } from './auth.dto'; // Import the CognitoPayload interface
 import { GoogleAuthGuard } from './guards/google.guard'; // Add Google strategy for OAuth
+import { GithubAuthGuard } from './guards/github.guard'; // Add Github strategy for OAuth
 import {
   Response as ExpressResponse,
   Request as ExpressRequest,
@@ -61,7 +62,9 @@ export class AuthController {
       throw new UnauthorizedException('No session found');
     }
 
-    const user = await this.cognitoService.validateToken(token);
+    const user = await this.jwtService.verify(token, {
+      secret: process.env.JWT_SECRET,
+    });
 
     if (!user) {
       throw new UnauthorizedException('Invalid session');
@@ -124,28 +127,33 @@ export class AuthController {
   @Post('login')
   async login(
     @Body() credentials: AuthSignInDto,
-    @Res({ passthrough: true }) response: ExpressResponse,
+    @Res({ passthrough: true }) res: ExpressResponse, // Include Express response
   ) {
     const { email, password } = credentials;
     try {
-      const tokens = await this.cognitoService.authenticateUser(
+      const payload = await this.cognitoService.authenticateUser(
         email,
         password,
       );
-      response.cookie(
-        'access_token',
-        tokens?.AuthenticationResult?.AccessToken,
-        {
-          httpOnly: true,
-          secure: false, // Set to true if using HTTPS
-          sameSite: 'strict',
-          maxAge: 24 * 60 * 60 * 1000, // 1 day
-        },
-      );
-      return {
-        message: 'Login successful',
-        tokens,
-      };
+      if (!payload) {
+        throw new Error('login payload is not set!');
+      }
+      if (!process.env.JWT_SECRET) {
+        throw new Error('JWT_SECRET environment variable is not set!');
+      }
+      const token = this.jwtService.sign(payload, {
+        secret: process.env.JWT_SECRET,
+        //expiresIn: '1h', // optional
+      });
+      res.cookie('access_token', token, {
+        httpOnly: true,
+        secure: false, // Set to true if using HTTPS
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
+      });
+
+      //const user = await this.cognitoService.getUserInfoByEmail(email)
+      return { ...payload, accessToken: token };
     } catch (error) {
       throw new HttpException(
         { message: 'Authentication failed', error: error.message },
@@ -154,6 +162,10 @@ export class AuthController {
     }
   }
   @Post('logout')
+  @ApiOperation({ summary: 'Logout the current user' })
+  @ApiResponse({ status: 200, description: 'User logged out successfully.' })
+  @ApiResponse({ status: 400, description: 'Access token is required.' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired access token.' })
   async logout(
     @Req() request: ExpressRequest,
     @Res() response: ExpressResponse,
@@ -176,7 +188,7 @@ export class AuthController {
       response.clearCookie('access_token', {
         httpOnly: true,
         sameSite: 'strict',
-        secure: true, // Ensure secure cookies in production
+        secure: false, // Ensure secure cookies in production
       });
 
       return response.json({ message: 'User logged out successfully' });
@@ -186,6 +198,80 @@ export class AuthController {
         .status(401)
         .json({ message: 'Invalid or expired access token' });
     }
+  }
+  /**
+   * Redirects to the GitHub OAuth login page.
+   * @returns {void} Redirects user to GitHub OAuth login page
+   */
+  @Get('github/login')
+  @UseGuards(GithubAuthGuard)
+  @ApiOperation({
+    summary: 'Redirect to GitHub OAuth login',
+    description:
+      'This endpoint redirects the user to GitHub login for OAuth authentication.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to GitHub OAuth login page.',
+  })
+  async githubAuth(@Res() res: ExpressResponse): Promise<void> {
+    const redirect = await this.cognitoService.getGitHubLoginRedirectUrl();
+    return res.redirect(redirect);
+  }
+
+  /**
+   * Handles the GitHub OAuth callback and issues a JWT token.
+   * @returns {void} Redirects user to a frontend route with a JWT token
+   */
+  @Get('callback/github')
+  @UseGuards(GithubAuthGuard)
+  @ApiOperation({
+    summary: 'GitHub OAuth callback',
+    description:
+      'This endpoint handles the GitHub OAuth callback, exchanges the code for a token, and generates a JWT for the user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Redirects the user with a JWT token.',
+    schema: {
+      example: {
+        token: 'JWT_TOKEN_HERE',
+      },
+    },
+  })
+  async githubAuthRedirect(@Req() req, @Res() res: ExpressResponse) {
+    const { user, accessToken } = req.user;
+    // You can customize the payload
+
+    const payload = {
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      accessToken,
+      iss: 'github',
+      aud: user.client_id,
+      role: user.role,
+    };
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not set!');
+    }
+    const token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      //expiresIn: '1h', // optional
+    });
+    //return {payload,token}
+    // Redirect user with JWT token or to a frontend route
+    //return res.redirect(`http://localhost:5173/?token=${token}`);
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: false, // Set to true if using HTTPS
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
+
+    //return payload;
+    // Redirect user with JWT token or to a frontend route
+    res.redirect(`http://localhost:5173/bash?token=${token}`);
   }
   @Post('google/login')
   @ApiOperation({ summary: 'Login using Google OAuth Code' })
@@ -247,13 +333,46 @@ export class AuthController {
   // Route for Google OAuth callback after user logs in
   @Get('callback/google')
   @UseGuards(GoogleAuthGuard) // Protects the callback with Google Auth Guard
-  async googleCallback(@Req() req, @Res() res) {
-    const user = req.user; // The user object returned by the GoogleStrategy
-    const payload = { email: user.email, name: user.name }; // You can customize this
-    const token = this.jwtService.sign(payload);
+  @ApiOperation({ summary: 'Google OAuth2 callback' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Successful Google authentication. Returns user information and a JWT token.',
+  })
+  @ApiResponse({ status: 401, description: 'Google authentication failed.' })
+  async googleCallback(@Req() req, @Res() res: ExpressResponse) {
+    const { user, accessToken } = req.user;
+    // You can customize the payload
 
-    // Send the JWT token in the response
-    res.json({ ...user, token });
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not set!');
+    }
+
+    const payload = {
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      accessToken,
+      iss: 'google',
+      aud: user.client_id,
+      role: user.role,
+    };
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET environment variable is not set!');
+    }
+    const token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      //expiresIn: '1h', // optional
+    });
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: false, // Set to true if using HTTPS
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
+
+    // Redirect user with JWT token or to a frontend route
+    res.redirect(`http://localhost:5173/bash?token=${token}`);
   }
 
   @ApiOperation({ summary: 'Get the user profile' })

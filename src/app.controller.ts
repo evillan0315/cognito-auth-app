@@ -10,9 +10,4 @@ export class AppController {
   getIndex() {
     return { message: 'Welcome to the NestJS API Server!' }; // Data to pass to the template
   }
-  @Get('terminal')
-  @Render('terminal') // Render the "index.hbs" file
-  getTerminal() {
-    return { message: 'Welcome to web terminal!' }; // Data to pass to the template
-  }
 }

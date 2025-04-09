@@ -17,9 +17,7 @@ export class AuthService {
       throw new Error('JWT_SECRET is not defined in environment variables.');
     }
 
-    return jwt.sign(user, process.env.JWT_SECRET as string, {
-      expiresIn: '1h',
-    });
+    return jwt.sign(user, process.env.JWT_SECRET);
   }
   async exchangeGoogleCodeForTokens(code: string): Promise<any> {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');

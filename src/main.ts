@@ -3,9 +3,10 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import * as cookieParser from 'cookie-parser';
-import { NestExpressApplication } from '@nestjs/platform-express'; // Import NestExpressApplication
-import * as path from 'path'; // Import path module
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as path from 'path';
 import * as express from 'express';
+import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -32,8 +33,16 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
+
   // Serve public assets (SolidJS build output)
   app.use('/', express.static(path.join(__dirname, '..', 'public/js')));
+
+  // Serve PostgreSQL module documentation
+  app.use(
+    '/docs/postgres',
+    express.static(join(__dirname, '..', 'src/database/postgres/docs')),
+  );
+
   // Set Handlebars as the view engine
   app.setViewEngine('hbs');
 

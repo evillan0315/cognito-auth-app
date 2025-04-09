@@ -1,8 +1,12 @@
+// src/auth/google.strategy.ts
+
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { Injectable } from '@nestjs/common';
 import { CognitoService } from '../../aws/cognito/cognito.service';
 import { CreateUserDto } from '../../user/dto';
+import * as jwt from 'jsonwebtoken'; // Importing jwt to verify the access token
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private readonly cognitoService: CognitoService) {
@@ -20,17 +24,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    console.log('Access Token:', accessToken);
-    console.log('Profile:', profile);
-
     const { displayName, emails, photos, _json } = profile;
 
-    if (!emails || emails.length === 0) {
-      return done(new Error('No email found in Google profile'), false);
+    if (!emails[0].value) {
+      throw new Error('No email found in GitHub profile');
     }
-    const userRes = await this.cognitoService.getUserInfoByEmail(
-      emails[0].value,
-    );
+
+    // Check if the user already exists in Cognito
+    let userRes = await this.cognitoService.getUserInfoByEmail(emails[0].value);
+
     if (!userRes) {
       const createUser: CreateUserDto = {
         username: emails[0].value,
@@ -38,23 +40,28 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         name: displayName,
         role: 'user',
         groups: ['user'],
-        //"image": photos[0].value
+        // "image": photos[0].value // You can include the image if needed
       };
-      console.log(createUser, 'createUser');
+
       const userCreated = await this.cognitoService.createUser(createUser);
       if (!userCreated) {
-        throw new Error('User not created');
+        return done(new Error('User not created'), false);
       }
-      done(null, userCreated);
+      userRes = userCreated; // Use the newly created user
     }
+
     const user = await this.cognitoService.getUserInfo(userRes.Username);
 
     if (!user) {
-      throw new Error('User not found');
+      return done(new Error('User not found'), false);
     }
-    //return user;
 
-    // Pass the user information to the callback
-    done(null, user);
+    // Return the user along with relevant profile and tokens
+    return done(null, {
+      user,
+      profile,
+      accessToken,
+      refreshToken,
+    });
   }
 }

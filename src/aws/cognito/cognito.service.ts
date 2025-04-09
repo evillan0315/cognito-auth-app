@@ -45,7 +45,27 @@ export class CognitoService {
     this.jwksUri = `https://cognito-idp.${process.env.AWS_REGION}.amazonaws.com/${process.env.COGNITO_USER_POOL_ID}/.well-known/jwks.json`;
     this.jwks = jwksClient({ jwksUri: this.jwksUri });
   }
+  async getGitHubLoginRedirectUrl(): Promise<string> {
+    const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
+    const COGNITO_REDIRECT_URI = process.env.COGNITO_REDIRECT_URI;
 
+    // Validate env vars
+    if (!GITHUB_CLIENT_ID || !COGNITO_REDIRECT_URI) {
+      throw new InternalServerErrorException(
+        'Missing Cognito configuration for GitHub login',
+      );
+    }
+
+    const githubOAuthDomain = 'https://github.com/login/oauth/authorize';
+
+    // GitHub OAuth URL construction
+    return (
+      `${githubOAuthDomain}` +
+      `?client_id=${GITHUB_CLIENT_ID}` +
+      `&redirect_uri=${COGNITO_REDIRECT_URI}/github` +
+      `&scope=user:email`
+    );
+  }
   async getGoogleLoginRedirectUrl(): Promise<string> {
     const COGNITO_DOMAIN = process.env.COGNITO_DOMAIN;
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -151,10 +171,7 @@ export class CognitoService {
     const response = await axios.get(url, { headers });
     return response.data;
   }
-  async authenticateUser(
-    email: string,
-    password: string,
-  ): Promise<InitiateAuthCommandOutput | null> {
+  async authenticateUser(email: string, password: string): Promise<any> {
     const params: InitiateAuthCommandInput = {
       AuthFlow: 'USER_PASSWORD_AUTH',
       ClientId: process.env.COGNITO_CLIENT_ID,
@@ -171,8 +188,27 @@ export class CognitoService {
       if (!authResult.AuthenticationResult) {
         throw new Error('Authentication failed, no AuthenticationResult found');
       }
+      const accessToken = authResult.AuthenticationResult.AccessToken;
+      if (!accessToken) {
+        throw new Error('Authentication failed, no token found');
+      }
+      const userInfo: CognitoPayload = await this.getUserInfo(email as string);
+      if (!userInfo) {
+        throw new Error(
+          'Authentication failed, no user found in the token provided',
+        );
+      }
 
-      return authResult;
+      const payload = {
+        username: userInfo?.username,
+        name: userInfo.name,
+        email: userInfo?.email,
+        accessToken,
+        iss: 'credentials',
+        aud: userInfo.client_id,
+        role: userInfo.role,
+      };
+      return payload;
     } catch (error) {
       console.error('Error during authentication:', error);
       throw new Error('Invalid credentials or authentication failed');

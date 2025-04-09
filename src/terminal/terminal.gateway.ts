@@ -1,5 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { UseGuards } from '@nestjs/common';
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { spawn } from 'child_process';
 import * as os from 'os';
@@ -8,6 +18,9 @@ import { resolve } from 'path';
 import { existsSync, statSync } from 'fs';
 import { exec } from 'child_process';
 import { CognitoWsGuard } from '../aws/cognito/cognito.ws.guard';
+import * as cookie from 'cookie';
+import { DynamodbService } from '../dynamodb/dynamodb.service';
+
 @WebSocketGateway({
   cors: {
     origin: ['http://localhost:5173'],
@@ -15,14 +28,31 @@ import { CognitoWsGuard } from '../aws/cognito/cognito.ws.guard';
   },
 })
 @UseGuards(CognitoWsGuard)
-export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TerminalGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
   private clientDirectories: Map<string, string> = new Map();
+  constructor(private readonly dynamodbService: DynamodbService) {}
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
+    let token;
+    const cookies = client.handshake?.headers?.cookie;
+    if (cookies) {
+      const parsedCookies = cookie.parse(cookies);
+      token = parsedCookies['access_token'];
+    }
+    // If no token found in the header, check cookies
+    if (!token) {
+      // Check for token in the Authorization header
+      token =
+        client.handshake?.auth?.token ||
+        client.handshake?.headers?.authorization?.split(' ')[1];
+    }
+
     // Ensure the client is authenticated before proceeding
-    if (!client.handshake.auth || !client.handshake.auth.token) {
+    if (!token) {
       client.emit('error', 'Authentication required');
       client.disconnect();
       return;
@@ -47,13 +77,12 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
       const hours = Math.floor((seconds % (24 * 3600)) / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
       const secs = Math.floor(seconds % 60);
-      
       let uptimeString = '';
       if (days > 0) uptimeString += `${days} day${days > 1 ? 's' : ''}, `;
       if (hours > 0) uptimeString += `${hours} hour${hours > 1 ? 's' : ''}, `;
-      if (minutes > 0) uptimeString += `${minutes} minute${minutes > 1 ? 's' : ''}, `;
+      if (minutes > 0)
+        uptimeString += `${minutes} minute${minutes > 1 ? 's' : ''}, `;
       if (secs > 0) uptimeString += `${secs} second${secs > 1 ? 's' : ''}`;
-      
       return uptimeString;
     };
 
@@ -70,15 +99,16 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
               console.error('Error getting memory usage:', stderr);
             } else {
               const memoryUsage = stdout.split('\n')[1].split(/\s+/); // Memory usage
-              const swapUsage = stdout.split('\n')[2].split(/\s+/);   // Swap usage
+              const swapUsage = stdout.split('\n')[2].split(/\s+/); // Swap usage
               const uptimeString = convertUptimeToTime(info.uptime);
 
               const initMessage = `
-Welcome to bashAI
+Project Name: Bash AI
 
-* Documentation:  https://help.${info.platform.toLowerCase()}.com
-* Management:     https://landscape.canonical.com
-* Support:        https://${info.platform.toLowerCase()}.com/pro
+Smart Terminal AI is an intelligent, web-based terminal interface powered by NestJS and SolidJS, integrated with state-of-the-art AI models like ChatGPT and Google Gemini. This smart terminal allows users to interact with system commands, code snippets, and AI assistance in real-time—blending traditional shell-like functionality with natural language processing capabilities.
+
+* Documentation:  https://github.com/evillan0315/bash-ai/docs
+* Repo:     	  https://github.com/evillan0315/bash-ai
 
 System information as of ${new Date().toUTCString()}
 
@@ -109,21 +139,58 @@ Swap usage:   ${swapUsage[2]} of ${swapUsage[1]} (${swapUsage[2]} used)	Homedir:
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
     this.clientDirectories.delete(client.id);
   }
+  // 🧃 Client joins a room
+  @SubscribeMessage('joinRoom')
+  handleJoinRoom(client: Socket, roomId: string) {
+    client.join(roomId);
+    console.log(`[Room] ${client.id} joined room: ${roomId}`);
 
+    client.emit('joinedRoom', {
+      roomId,
+      message: `You have joined room ${roomId}`,
+    });
+
+    // Optional: Notify others
+    client.to(roomId).emit('userJoined', {
+      userId: client.id,
+      message: `A new user joined room ${roomId}`,
+    });
+  }
   @SubscribeMessage('exec')
-  handleCommand(@MessageBody() command: string, @ConnectedSocket() client: Socket) {
-    // Ensure the user is authenticated
-    if (!client.handshake.auth || !client.handshake.auth.token) {
+  async handleCommand(
+    @MessageBody() command: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    let token;
+    const cookies = client.handshake?.headers?.cookie;
+    if (cookies) {
+      const parsedCookies = cookie.parse(cookies);
+      token = parsedCookies['access_token'];
+    }
+
+    if (!token) {
+      // Check for token in the Authorization header or cookies
+      token =
+        client.handshake?.auth?.token ||
+        client.handshake?.headers?.authorization?.split(' ')[1];
+    }
+
+    // Ensure the user is authenticated before processing the command
+    if (!token) {
       client.emit('error', 'Authentication required');
+      client.disconnect();
       return;
     }
 
     const clientId = client.id;
     let cwd = this.clientDirectories.get(clientId) || process.cwd();
 
+    const user = client.data.user;
+    //const commands = await this.dynamodbService.getStoredCommandsByUser(user.sub);
+
+    //console.log(storedComm, 'storedComm');
     // Handle 'cd' separately
     if (command.startsWith('cd')) {
       const targetPath = command.slice(3).trim() || process.env.HOME || cwd;
@@ -163,12 +230,28 @@ Swap usage:   ${swapUsage[2]} of ${swapUsage[1]} (${swapUsage[2]} used)	Homedir:
       return;
     }
 
-    // Emit the current directory before running
+    await this.dynamodbService.storeCommand(command, user.sub, user.username);
 
+    const allCommandsResult = await this.dynamodbService.getStoredCommands();
+    const allCommands = allCommandsResult.Items ?? [];
+
+    const userCommands = allCommands
+      .filter((cmd) => cmd.cognitoId?.S === client.data.user.sub)
+      .map((cmd) => ({
+        commandId: cmd.commandId.S,
+        command: cmd.command.S,
+        timestamp: cmd.timestamp.S,
+        cognitoId: cmd.cognitoId.S,
+        username: cmd.username?.S,
+      }));
+    console.log(`Client connected: ${user.username}`);
+    client.emit('storedCommands', { user, userCommands });
+    //client.emit('output', `Changed directory to ${newPath}\n`);
     const shell = spawn(command, {
-	  shell: '/bin/bash',
-	  cwd,
-	});
+      shell: '/bin/bash',
+      cwd,
+    });
+
     shell.stdout.on('data', (data) => {
       client.emit('output', data.toString());
     });
@@ -182,4 +265,3 @@ Swap usage:   ${swapUsage[2]} of ${swapUsage[1]} (${swapUsage[2]} used)	Homedir:
     });
   }
 }
-

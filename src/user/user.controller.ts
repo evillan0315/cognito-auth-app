@@ -24,7 +24,7 @@ import { Roles } from '../admin/roles/roles.decorator'; // Ensure correct path
 import { Role } from '../admin/roles/role.enum'; // Ensure correct path
 import { RolesGuard } from '../admin/roles/roles.guard'; // Ensure correct path
 import { CognitoGuard } from '../aws/cognito/cognito.guard'; // Adjust the path as needed
-@ApiTags('Admin - Users') // Updated Swagger grouping
+@ApiTags('Users') // Updated Swagger grouping
 @ApiBearerAuth() // Requires authentication via Bearer token
 @UseGuards(CognitoGuard, RolesGuard)
 @Controller('api/users') // Nested inside admin

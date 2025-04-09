@@ -64,7 +64,7 @@ model ApiUsage {
   outputTokens Int?
   cost         Float?
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   Message      Message  @relation(fields: [messageId], references: [id])
 }
 
@@ -73,7 +73,7 @@ model Chat {
   userId    String
   title     String?
   createdAt DateTime  @default(now())
-  updatedAt DateTime
+  updatedAt DateTime  @updatedAt
   User      User      @relation(fields: [userId], references: [id])
   Message   Message[]
 }
@@ -100,12 +100,16 @@ model Component {
   name        String  @unique
   description String?
   props       Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 }
 
 model Documentation {
-  id      String  @id @default(uuid())
-  name    String
-  content String?
+  id        String    @id @default(uuid())
+  name      String
+  content   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 }
 
 model File {
@@ -134,13 +138,7 @@ model Folder {
   children    Folder[] @relation("FolderHierarchy")
 }
 
-model Item {
-  id          String    @id @default(uuid())
-  name        String
-  description String?
-  startDate   DateTime?
-  dueDate     DateTime?
-}
+
 
 model Message {
   id              String            @id @default(uuid())
@@ -148,7 +146,7 @@ model Message {
   content         String
   sender          Sender
   createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   ApiUsage        ApiUsage[]
   Chat            Chat              @relation(fields: [chatId], references: [id])
   ModelParameters ModelParameters[]
@@ -164,7 +162,7 @@ model ModelParameters {
   safetySettings  Json?
   stopSequences   Json?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   Message         Message  @relation(fields: [messageId], references: [id])
 }
 
@@ -175,18 +173,14 @@ model Organization {
 }
 
 model Page {
-  id      String  @id @default(uuid())
-  title   String?
-  content String?
-  props   Json?
+  id        String    @id @default(uuid())
+  title     String?
+  content   String?
+  props     Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
 }
 
-model Post {
-  id      String  @id @default(uuid())
-  name    String?
-  content String?
-  props   Json?
-}
 
 model Priority {
   id        String   @id @default(uuid())
@@ -262,6 +256,25 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model database_connection_entity {
+  id                            Int     @id(map: "PK_d6695ad67c591026b6161dac7a0") @default(autoincrement())
+  name                          String  @db.VarChar
+  type                          String  @db.VarChar
+  host                          String? @db.VarChar
+  port                          Int?
+  username                      String? @db.VarChar
+  password                      String? @db.VarChar
+  databaseName                  String? @db.VarChar
+  dynamoDBTableName             String? @db.VarChar
+  dynamoDBKeySchema             Json?
+  dynamoDBAttributeDefinitions  Json?
+  dynamoDBProvisionedThroughput Json?
+  awsRegion                     String? @db.VarChar
+  awsAccessKeyId                String? @db.VarChar
+  awsSecretAccessKey            String? @db.VarChar
+  connectionString              String?
 }
 
 enum Sender {
